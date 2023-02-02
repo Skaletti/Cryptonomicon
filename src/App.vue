@@ -64,7 +64,7 @@
           </div>
           <div class="w-full border-t border-gray-200"></div>
           <button
-            @click="handleDelete(t)"
+            @click.stop="handleDelete(t)"
             class="flex items-center justify-center font-medium w-full bg-gray-100 px-4 py-4 sm:px-6 text-md text-gray-500 hover:text-gray-600 hover:bg-gray-200 hover:opacity-20 transition-all focus:outline-none"
           >
             <svg
@@ -90,19 +90,12 @@
         {{ sel.name }} - USD
       </h3>
       <div class="flex items-end border-gray-600 border-b border-l h-64">
-        <div
-          class="bg-purple-800 border w-10 h-24"
-        ></div>
-        <div
-          class="bg-purple-800 border w-10 h-32"
-        ></div>
-        <div
-          class="bg-purple-800 border w-10 h-48"
-        ></div>
-        <div
-          class="bg-purple-800 border w-10 h-16"
-        ></div>
-      </div>
+        <div 
+          v-for="(bar, idx) in normalizeGraph()"
+          :key="idx"
+          :style="{ height: `${bar}%` }"
+          class="bg-purple-800 border w-10 h-24"></div>
+        </div>
       <button
       @click="sel = null"
         type="button"
@@ -144,29 +137,43 @@ export default {
 
   data() {
     return {
-      ticker: "default",
-      tickers: [
-        { name: "DEMO1", price: "20"},
-        { name: "DEMO2", price: "30"},
-        { name: "DEMO3", price: "50"}
-      ],
+      ticker: "",
+      tickers: [],
       sel: null, 
+      graph:[],
     };
   },
 
   methods: {
     add() {
-      const newTicker = {
+      const currentTicker = {
         name: this.ticker,
-        price: "1000",
+        price: "-",
       };
 
-      this.tickers.push(newTicker);
+      this.tickers.push(currentTicker);
+      setInterval(async() => {
+        const f = await fetch(`https://min-api.cryptocompare.com/data/price?fsym=${currentTicker.name}&tsyms=${currentTicker.name}&tsyms=USD&api_key=cfb052cad23f73a64dbe57610e4c35aee237ce7f8fadc6a14a5abb4f2825035c`);
+        const data = await f.json()
+        console.log(data)
+        this.tickers.find(t => t.name === currentTicker.name).price = data.USD > 1 ? data.USD.toFixed(3) : data.USD.toPrecision(2)
+        if (this.sel?.name === currentTicker.name) {
+          this.graph.push(data.USD)
+        }
+      }, 3000);
       this.ticker = "";
     }, 
     
     handleDelete(tickerToRemove) {
       this.tickers = this.tickers.filter(t => t != tickerToRemove);
+    },
+
+    normalizeGraph() {
+      const maxValue = Math.max(...this.graph)
+      const minValue = Math.min(...this.graph)
+      return this.graph.map(
+        price => ((price - minValue) / (maxValue - minValue))
+      )
     }
   },
 };
