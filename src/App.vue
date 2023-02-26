@@ -48,7 +48,7 @@
         <div
           v-for="t in tickers"
           v-bind:key="t.name"
-          @click="sel = t"
+          @click="select(t)"
           :class="{
             'border-4' : sel === t
           }"
@@ -94,7 +94,7 @@
           v-for="(bar, idx) in normalizeGraph()"
           :key="idx"
           :style="{ height: `${bar}%` }"
-          class="bg-purple-800 border w-10 h-24"></div>
+          class="bg-purple-800 border w-10"></div>
         </div>
       <button
       @click="sel = null"
@@ -144,7 +144,31 @@ export default {
     };
   },
 
+  created() {
+    const tickersData = localStorage.getItem("cryptonomicon-list");
+    if(tickersData){
+      this.tickers = JSON.parse(tickersData);
+      this.tickers.forEach(ticker => {
+        this.subscribeToUpdates(ticker.name)
+      })
+    }    
+  },
+
   methods: {
+    subscribeToUpdates(tickerName){
+      setInterval(async() => {
+        const f = await fetch(`https://min-api.cryptocompare.com/data/price?fsym=${tickerName}&tsyms=${tickerName}&tsyms=USD&api_key=cfb052cad23f73a64dbe57610e4c35aee237ce7f8fadc6a14a5abb4f2825035c`);
+        const data = await f.json()
+        console.log(data)
+        this.tickers.find(t => t.name === tickerName).price = 
+          data.USD > 1 ? data.USD.toFixed(3) : data.USD.toPrecision(2)
+        if (this.sel?.name === tickerName) {
+          this.graph.push(data.USD)
+        }
+      }, 3000);
+      this.ticker = "";
+    },
+
     add() {
       const currentTicker = {
         name: this.ticker,
@@ -152,17 +176,15 @@ export default {
       };
 
       this.tickers.push(currentTicker);
-      setInterval(async() => {
-        const f = await fetch(`https://min-api.cryptocompare.com/data/price?fsym=${currentTicker.name}&tsyms=${currentTicker.name}&tsyms=USD&api_key=cfb052cad23f73a64dbe57610e4c35aee237ce7f8fadc6a14a5abb4f2825035c`);
-        const data = await f.json()
-        console.log(data)
-        this.tickers.find(t => t.name === currentTicker.name).price = data.USD > 1 ? data.USD.toFixed(3) : data.USD.toPrecision(2)
-        if (this.sel?.name === currentTicker.name) {
-          this.graph.push(data.USD)
-        }
-      }, 3000);
-      this.ticker = "";
-    }, 
+
+      localStorage.setItem("cryptonomicon-list", JSON.stringify(this.tickers))
+      this.subscribeToUpdates(currentTicker.name)
+    },      
+    
+    select(ticker) {
+      this.sel = ticker;
+      this.graph = [];
+    },
     
     handleDelete(tickerToRemove) {
       this.tickers = this.tickers.filter(t => t != tickerToRemove);
@@ -172,7 +194,7 @@ export default {
       const maxValue = Math.max(...this.graph)
       const minValue = Math.min(...this.graph)
       return this.graph.map(
-        price => ((price - minValue) / (maxValue - minValue))
+        price => 5 + ((price - minValue) * 95) / (maxValue - minValue)
       )
     }
   },
