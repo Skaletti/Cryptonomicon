@@ -168,6 +168,11 @@ export default {
   watch: {
       filter() {
         this.page = 1;
+        window.history.pushState(
+          null,
+          document.title,
+          `${window.location.pathName}?filter=${this.filter}`
+        );
       }
   },
 
